@@ -1,5 +1,6 @@
 
-
+// do NOT instantiate these structs directly, with malloc or anything!
+// use `set_new()`.
 typedef struct {
     int index;
     void *key;
@@ -27,12 +28,12 @@ void set_free(set *s);
 set *set_new(void);
 
 
-#define FORSETi(sett) \
+#define set_FORI(sett) \
 void * iptr;                 \
 for(int i=0; i < (sett).n_items; i++, iptr = (sett).ptrs[i])
 
 
-#define FORSETj(sett) \
+#define set_FORJ(sett) \
 void * jptr;                 \
 for(int j=0; j < (sett).n_items; j++, jptr = (sett).ptrs[j])
 
