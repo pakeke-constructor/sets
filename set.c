@@ -3,7 +3,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define GROW_RATIO 0.25f
+#define GROW_RATIO 4 // for every item in hash, there are 4 buckets
 #define START_SIZE 13
 
 #define unlikely(x)    (__builtin_expect(!!(x), 0))
@@ -14,19 +14,21 @@ static inline int hashfn(void *key){
     return (int)key / 16;
 };
 
+
+
 static short grow(set *s){
     // grows a set by twice size
     // returns 1 on failure
 
     s->memsize *= 2;
 
-    free(s->data);
-    s->data = malloc(s->memsize * sizeof(_set_bucket));
-    if unlikely(!s->data){
+    free(s->buckets);
+    s->buckets = malloc(s->memsize * sizeof(_set_bucket));
+    if unlikely(!s->buckets){
         return 1;
     }
     for (int i=0; i < s->memsize; i++){
-        s->data[i].bool_taken = 1;
+        s->buckets[i].key = NULL;
     }
 
     s->ptrs = realloc(s->ptrs, sizeof(void*) * (s->nitems + 1) * 2); // add 1 to be safe 
@@ -43,13 +45,7 @@ static short grow(set *s){
 
 
 short set_add(set *s, void *ptr){
-    _set_bucket buck = {
-        .index = s->nitems + 1,
-        .key = ptr,
-        .bool_taken = (char)1
-    };
-
-    if ((s->nitems + 1) > (s->memsize * GROW_RATIO)){
+    if ((s->nitems + 1) > (s->memsize / GROW_RATIO)){
         // then grow the set
         short failed = grow(s);
         if unlikely(failed){
@@ -61,14 +57,15 @@ short set_add(set *s, void *ptr){
     s->nitems++;
 
     int i = hashfn(ptr) % s->memsize;
-    int ctr = 1;
+    int ctr = 0;
 
-    while (s->data[i].bool_taken){ // quadratic bucket probe
+    while (s->buckets[i].key){ // quadratic bucket probe
         i = (i + (ctr * ctr)) % s->memsize;
         ctr += 1;
     }
 
-    s->data[i] = buck;
+    s->buckets[i].index = s->nitems + 1;
+    s->buckets[i].key = ptr;
     return 0;
 }
 
@@ -81,13 +78,17 @@ set *set_new(void){
         return NULL; // failed
     }
 
-    ret->memsize = START_SIZE;
-    ret->data = malloc(ret->memsize * sizeof(void *));
-    ret->ptrs = malloc((START_SIZE/4) * sizeof(_set_bucket));
+    ret->memsize = START_SIZE * GROW_RATIO;
+    ret->buckets = malloc(ret->memsize * sizeof(void*));
+    ret->ptrs = malloc(START_SIZE * sizeof(_set_bucket));
     ret->nitems = 0;
 
-    if unlikely((!ret->data) || (!ret->ptrs)){
-        free(ret->data);
+    for (int i=0; i < ret->nitems; i++){
+        ret->buckets[i].key = NULL; // initialize all to NULL
+    }
+
+    if unlikely((!ret->buckets) || (!ret->ptrs)){
+        free(ret->buckets);
         free(ret->ptrs);
         free(ret);
         return NULL; // also failed
@@ -99,19 +100,18 @@ set *set_new(void){
 
 short set_has(set *s, void *ptr){
     int i = hashfn(ptr) % s->memsize;
-    int ctr = 1;
+    int ctr = 0;
 
-    int ret;
-
-    while (s->data[i].key != ptr){ // quadratic bucket probe
-        if (!s->data[i].bool_taken){
+    while (s->buckets[i].key != ptr){ // quadratic bucket probe
+        if (!s->buckets[i].key){
+            // if key ptr is null, return 0; unfound.
             return 0;
         }
         i = (i + (ctr * ctr)) % s->memsize;
         ctr += 1;
     }
 
-    if(!s->data[i].bool_taken){
+    if(!s->buckets[i].key){
         return 0;
     }else{
         return 1;
@@ -122,28 +122,31 @@ short set_has(set *s, void *ptr){
 
 void set_remove(set *s, void *ptr){
     int i = hashfn(ptr) % s->memsize;
-    int ctr = 1;
+    int ctr = 0;
     
-    while (s->data[i].key != ptr){
-        if (!s->data[i].bool_taken){
+    while (s->buckets[i].key != ptr){
+        if (!s->buckets[i].key){
             // ptr is not in the set
+            // because data[i].key is NULL
             return;
         }
         i = (i + (ctr * ctr)) % s->memsize;
         ctr += 1;
     }
 
-    int index = s->data[i].index;
-    s->ptrs[index] = s->ptrs[s->nitems-1]; // put last item in slot of other
+    int index = s->buckets[i].index;
+    _set_bucket *end = s->ptrs[s->nitems-1];
+    s->ptrs[index] = end; // put last item in slot of other
+    end->index = index;
     s->nitems--;
 
-    s->data[i].bool_taken = (char)0;
+    s->buckets[i].key = NULL;
 }
 
 
 
 void set_free(set *s){
-    free(s->data);
+    free(s->buckets);
     free(s->ptrs);
     free(s);
 }
@@ -152,8 +155,9 @@ void set_free(set *s){
 void set_clear(set *s){
     set_free(s);
 
-    s->memsize = START_SIZE;
-    s->data = malloc(s->memsize * sizeof(void *));
-    s->ptrs = malloc((START_SIZE/4) * sizeof(_set_bucket));
+    s->memsize = START_SIZE * GROW_RATIO;
+    s->buckets = malloc(s->memsize * sizeof(void *));
+    s->ptrs = malloc(START_SIZE * sizeof(_set_bucket));
     s->nitems = 0;
 }
+

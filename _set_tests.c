@@ -11,13 +11,26 @@ int main(){
 
     set_add(s, i);
     if (set_has(s, i)){
-        printf("nice :)");
+        printf("nice 1\n");
     }
     set_remove(s, i);
-    set_remove(s,i);
+    set_remove(s, i);
     if (!set_has(s, i)){
-        printf("nice :)");
+        printf("nice 2\n");
     }
 
+    set_add(s, i);
+    printf("done add\n");
+    set_clear(s);
+
+    printf("before if\n");
+    fflush(stdout);
+    if (!set_has(s, i)){
+        printf("nice 3\n");
+        fflush(stdout);
+    }
+    printf("after if\n");
+    fflush(stdout);
+    set_free(s);
 }
 
