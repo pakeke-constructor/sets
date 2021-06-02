@@ -1,0 +1,1 @@
+gcc _set_tests.c set.c -Wall -pedantic -ggdb

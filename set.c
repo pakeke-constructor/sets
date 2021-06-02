@@ -2,6 +2,7 @@
 #include "set.h"
 #include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #define GROW_RATIO 4 // for every item in hash, there are 4 buckets
 #define START_SIZE 13
@@ -12,7 +13,7 @@
 
 static inline int hashfn(void *key){
     return (int)key / 16;
-};
+}
 
 
 
@@ -64,7 +65,7 @@ short set_add(set *s, void *ptr){
         ctr += 1;
     }
 
-    s->buckets[i].index = s->nitems + 1;
+    s->buckets[i].index = s->nitems;
     s->buckets[i].key = ptr;
     return 0;
 }
@@ -83,8 +84,8 @@ set *set_new(void){
     ret->ptrs = malloc(START_SIZE * sizeof(_set_bucket));
     ret->nitems = 0;
 
-    for (int i=0; i < ret->nitems; i++){
-        ret->buckets[i].key = NULL; // initialize all to NULL
+    for (int i=0; i < ret->memsize; i++){
+        ret->buckets[i].key = NULL; // initialize all ptrs to NULL
     }
 
     if unlikely((!ret->buckets) || (!ret->ptrs)){
@@ -130,7 +131,7 @@ void set_remove(set *s, void *ptr){
             // because data[i].key is NULL
             return;
         }
-        i = (i + (ctr * ctr)) % s->memsize;
+        i = ((i + (ctr * ctr)) % s->memsize);
         ctr += 1;
     }
 
@@ -153,7 +154,8 @@ void set_free(set *s){
 
 
 void set_clear(set *s){
-    set_free(s);
+    free(s->buckets);
+    free(s->ptrs);
 
     s->memsize = START_SIZE * GROW_RATIO;
     s->buckets = malloc(s->memsize * sizeof(void *));

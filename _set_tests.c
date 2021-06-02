@@ -4,10 +4,11 @@
 #include <stdlib.h>
 
 int main(){
-    set *s = set_new();
-
-    int *i = malloc(sizeof(*i));
+    int *i = malloc(sizeof(int));
     *i=70;
+
+    printf("HELLO??? START TESTS\n");
+    set *s = set_new();
 
     set_add(s, i);
     if (set_has(s, i)){
@@ -24,13 +25,11 @@ int main(){
     set_clear(s);
 
     printf("before if\n");
-    fflush(stdout);
     if (!set_has(s, i)){
         printf("nice 3\n");
-        fflush(stdout);
     }
     printf("after if\n");
-    fflush(stdout);
     set_free(s);
+    printf("END TESTS\n");
 }
 
